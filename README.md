@@ -35,3 +35,33 @@ DefaultAzureCredential を使っているので、コマンドラインから実
 azidentityは、memory 上の token cacheがデフォルトで実装されるので、最初のアクセス以降のオーバーヘッドは少ないはずです。手元で確認したところ、token のexpireは1時間でした。
 
 
+
+## 4. Token の更新
+
+シンプルにトークンの使いまわしと、更新を確認
+`2024/05/23 09:35:23` が最初で、1時間後に、`expires=2024-05-23T10:46:30.000+09:00`。tokenのhashは、`945b57`。`10:35:29` までは同じtoken、`10:50:31`に`140bf0`、expiresが`11:58:31`に更新。
+それっぽい。redis clientは同じのを使っているので、接続は使いまわしているはずで、認証(AUTHコマンド？)を毎回送る必要はないはず。AUTHコマンドを実行するときに、、CredentialsProviderを呼んでるのではないのか？と思うので、後で確認する。
+VM上で、MSI使うと、expires は一日らしい。確かに、az cli 環境よりMSIの方がセキュアなのかもしれない。
+
+```sh
+$ go  run . -h $REDIS_ADDRESS -u f05421d4-465e-4766-9d70-xxxxxxxxxxxx  | tee log.txt
+2024/05/23 09:35:22 INFO getting credentials
+2024/05/23 09:35:23 INFO token username=f05421d4-465e-4766-9d70-xxxxxxxxxxxx token=945b579debc891f139747f50caee915fa89730a0 expires=2024-05-23T10:46:30.000+09:00
+2024/05/23 09:35:23 INFO ping response=PONG
+2024/05/23 09:50:23 INFO getting credentials
+2024/05/23 09:50:25 INFO token username=f05421d4-465e-4766-9d70-xxxxxxxxxxxx token=945b579debc891f139747f50caee915fa89730a0 expires=2024-05-23T10:46:30.000+09:00
+2024/05/23 09:50:25 INFO ping response=PONG
+2024/05/23 10:05:25 INFO getting credentials
+2024/05/23 10:05:26 INFO token username=f05421d4-465e-4766-9d70-xxxxxxxxxxxx token=945b579debc891f139747f50caee915fa89730a0 expires=2024-05-23T10:46:30.000+09:00
+2024/05/23 10:05:26 INFO ping response=PONG
+2024/05/23 10:20:26 INFO getting credentials
+2024/05/23 10:20:28 INFO token username=f05421d4-465e-4766-9d70-xxxxxxxxxxxx token=945b579debc891f139747f50caee915fa89730a0 expires=2024-05-23T10:46:30.000+09:00
+2024/05/23 10:20:28 INFO ping response=PONG
+2024/05/23 10:35:28 INFO getting credentials
+2024/05/23 10:35:29 INFO token username=f05421d4-465e-4766-9d70-xxxxxxxxxxxx token=945b579debc891f139747f50caee915fa89730a0 expires=2024-05-23T10:46:30.000+09:00
+2024/05/23 10:35:29 INFO ping response=PONG
+2024/05/23 10:50:29 INFO getting credentials
+2024/05/23 10:50:31 INFO token username=f05421d4-465e-4766-9d70-xxxxxxxxxxxx token=140bf0d72abc585496101609daeae7f182f3791a expires=2024-05-23T11:58:31.000+09:00
+2024/05/23 10:50:31 INFO ping response=PONG
+```
+
